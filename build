@@ -1,0 +1,2 @@
+g++ -Wall -g -O2 fluid_simulator.cpp cfd.h cfd.cpp cfdUtility.h -fopenmp -lm -lGL -lglut -I /usr/include -L/usr/lib -lOpenImageIO -o fluid_simulator
+
