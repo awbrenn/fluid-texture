@@ -54,14 +54,21 @@
 #include <cmath>
 #include "CmdLineFind.h"
 
-#include <GL/gl.h>   // OpenGL itself.
-#include <GL/glu.h>  // GLU support library.
-#include <GL/glut.h> // GLUT support library.
 #include "cfd.h"
 
-#include <iostream>
+#ifdef __APPLE__
+  #include <OpenGL/gl.h>   // OpenGL itself.
+  #include <OpenGL/glu.h>  // GLU support library.
+  #include <GLUT/glut.h> // GLUT support library.
+#else
+  #include <GL/gl.h>   // OpenGL itself.
+  #include <GL/glu.h>  // GLU support library.
+  #include <GL/glut.h> // GLUT support library.
+  #include <omp.h>
+#endif
+
 #include <OpenImageIO/imageio.h>
-#include <omp.h>
+
 
 
 using namespace std;
@@ -227,17 +234,18 @@ void InitializeBrushes(int new_brush_size)
       int ii = i + brush_width;
       float ifactor =  (float(brush_width) - (float)fabs(i) )/float(brush_width);
       float radius = (float) ((jfactor * jfactor + ifactor * ifactor) / 2.0);
-      source_brush[ii][jj] = pow(radius,0.5);
+      source_brush[ii][jj] = powf(radius,0.5);
       obstruction_brush[ii][jj] = (float)(1.0 - pow(radius, 1.0/4.0));
     }
   }
 }
 
-
+#ifdef __linux__
 void setNbCores( int nb )
 {
   omp_set_num_threads( nb );
 }
+#endif
 
 
 //----------------------------------------------------
@@ -252,7 +260,9 @@ void ConvertToDisplay()
   float *color = fluid->getColorPointer();
   for( int j=0;j<iheight;j++ )
   {
+#ifdef __linux__
 #pragma omp parallel for
+#endif
     for(int i=0;i<iwidth;i++ )
     {
       int index = i + iwidth*j;
@@ -500,7 +510,9 @@ int main(int argc, char** argv)
 
   output_path = clf.find("-output_path", "output_images/", "Output path for writing image sequence");
 
+#ifdef __linux__
   setNbCores(4);
+#endif
 
   string imagename = clf.find("-image", "dali1.jpeg", "Image to drive color");
 

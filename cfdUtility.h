@@ -15,7 +15,9 @@ void swapFloatPointers(float** a, float** b)
 
 void Initialize( float *data, int size, float value )
 {
+#ifdef __linux__
 #pragma omp parallel for
+#endif
   for(int i=0;i<size;i++ ) { data[i] = value; }
 }
 
