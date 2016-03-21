@@ -497,6 +497,47 @@ void PrintUsage()
 //
 //----------------------------------------------------
 
+struct point {
+    float x, y, z;
+};
+
+void drawStuff() {
+  int i;
+  struct point front[4]={{0.0,0.0,1.0},{1.0,0.0,1.0},{1.0,1.0,1.0},{0.0,1.0,1.0}};
+
+
+  glEnable(GL_DEPTH_TEST);
+  glEnable(GL_MULTISAMPLE_ARB);
+
+  glClearColor(0.35,0.35,0.35,0.0);
+  glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+  glBegin(GL_QUADS);
+  glNormal3f(0.0,0.0,1.0);
+  for(i=0;i<4;i++) glVertex3f(front[i].x,front[i].y,front[i].z);
+  glEnd();
+  glFlush();
+}
+
+void setupViewVolume()
+{
+  struct point eye, view, up;
+
+// specify size and shape of view volume
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  gluPerspective(45.0,1.0,0.1,20.0);
+
+// specify position for view volume
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+
+  eye.x = 2.5; eye.y = 1.8; eye.z = 2.0;
+  view.x = 0.0; view.y = 0.0; view.z = 0.0;
+  up.x = 0.0; up.y = 1.0; up.z = 0.0;
+
+  gluLookAt(eye.x,eye.y,eye.z,view.x,view.y,view.z,up.x,up.y,up.z);
+}
 
 int main(int argc, char** argv)
 {
@@ -560,11 +601,13 @@ int main(int argc, char** argv)
 
   glClearColor(1, 1, 1, 1);
 
-  glutDisplayFunc(&cbDisplay);
-  glutIdleFunc(&cbIdle);
-  glutKeyboardFunc(&cbOnKeyboard);
-  glutMouseFunc(&cbMouseDown);
-  glutMotionFunc(&cbMouseMove);
+  setupViewVolume();
+//  drawStuff();
+  glutDisplayFunc(&drawStuff);
+//  glutIdleFunc(&cbIdle);
+//  glutKeyboardFunc(&cbOnKeyboard);
+//  glutMouseFunc(&cbMouseDown);
+//  glutMotionFunc(&cbMouseMove);
 
   glutMainLoop();
   return 1;
