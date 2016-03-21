@@ -47,12 +47,14 @@
 //
 //
 //-------------------------------------------------
-
-
-
-
+#define GL_GLEXT_PROTOTYPES 1
+#include <stdlib.h>
+#include <fcntl.h>
+#include <math.h>
 #include <cmath>
 #include "CmdLineFind.h"
+#include <stdio.h>
+#include <unistd.h>
 
 #include "cfd.h"
 
@@ -76,6 +78,7 @@ using namespace lux;
 OIIO_NAMESPACE_USING
 
 int iwidth, iheight;
+int shader_program;
 float* display_map;
 float* density_source;
 float* color_source;
@@ -504,7 +507,7 @@ struct point {
 void drawStuff() {
   int i;
   struct point front[4]={{0.0,0.0,1.0},{1.0,0.0,1.0},{1.0,1.0,1.0},{0.0,1.0,1.0}};
-
+  float mytexcoords[4][2] = {{0.0,1.0},{1.0,1.0},{1.0,0.0},{0.0,0.0}};
 
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_MULTISAMPLE_ARB);
@@ -512,6 +515,10 @@ void drawStuff() {
   glClearColor(0.35,0.35,0.35,0.0);
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
+  glUseProgram((GLuint) shader_program);		// THIS IS IT!
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D,1);
+  glEnable(GL_TEXTURE_2D);
   glBegin(GL_QUADS);
   glNormal3f(0.0,0.0,1.0);
   for(i=0;i<4;i++) glVertex3f(front[i].x,front[i].y,front[i].z);
@@ -538,6 +545,103 @@ void setupViewVolume()
 
   gluLookAt(eye.x,eye.y,eye.z,view.x,view.y,view.z,up.x,up.y,up.z);
 }
+
+
+char *read_shader_program(char *filename)
+{
+  FILE *fp;
+  char *content = NULL;
+  int fd, count;
+  fd = open(filename,O_RDONLY);
+  count = (int) lseek(fd,0,SEEK_END);
+  close(fd);
+  content = (char *)calloc(1,(size_t)(count+1));
+  fp = fopen(filename,"r");
+  count = fread(content,sizeof(char),count,fp);
+  content[count] = '\0';
+  fclose(fp);
+  return content;
+}
+
+
+unsigned int setShaders()
+{
+  GLint vertCompiled, fragCompiled;
+  char *vs, *fs;
+  GLuint v, f, p;
+
+  v = glCreateShader(GL_VERTEX_SHADER);
+  f = glCreateShader(GL_FRAGMENT_SHADER);
+  vs = read_shader_program((char *) "/home/awbrenn/Documents/workspace/fluid2D/midterm_show/sim_tex.vert");
+  fs = read_shader_program((char *) "/home/awbrenn/Documents/workspace/fluid2D/midterm_show/sim_tex.frag");
+  glShaderSource(v,1,(const char **)&vs,NULL);
+  glShaderSource(f,1,(const char **)&fs,NULL);
+  free(vs);
+  free(fs);
+  glCompileShader(v);
+  glCompileShader(f);
+  p = glCreateProgram();
+  glAttachShader(p,f);
+  glAttachShader(p,v);
+  glLinkProgram(p);
+  return(p);
+}
+
+
+void set_uniform_parameters(unsigned int p)
+{
+  int location;
+  location = glGetUniformLocation(p,"mytexture");
+  glUniform1i(location,0);
+}
+
+
+void set_texture() {
+  glBindTexture(GL_TEXTURE_2D,1);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,iwidth,iheight,0,GL_RGB,
+      GL_UNSIGNED_BYTE,color_source);
+  glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+  glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+  glTexEnvf(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+}
+
+
+void lights()
+{
+  float light0_ambient[] = { 0.0, 0.0, 0.0, 0.0 };
+  float light0_diffuse[] = { 1.0, 1.0, 1.0, 0.0 };
+  float light0_specular[] = { 1.0, 1.0, 1.0, 0.0 };
+  float light0_position[] = { M_SQRT2, 2.0, 2.0, 1.0 };
+  float light0_direction[] = { -M_SQRT2, -2.0, -2.0, 1.0};
+
+  glLightModelfv(GL_LIGHT_MODEL_AMBIENT,light0_ambient);
+  glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,1);
+  glLightfv(GL_LIGHT0,GL_AMBIENT,light0_ambient);
+  glLightfv(GL_LIGHT0,GL_DIFFUSE,light0_diffuse);
+  glLightfv(GL_LIGHT0,GL_SPECULAR,light0_specular);
+  glLightf(GL_LIGHT0,GL_SPOT_EXPONENT,0.0);
+  glLightf(GL_LIGHT0,GL_SPOT_CUTOFF,180.0);
+  glLightf(GL_LIGHT0,GL_CONSTANT_ATTENUATION,1.0);
+  glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION,0.0);
+  glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION,0.0);
+  glLightfv(GL_LIGHT0,GL_POSITION,light0_position);
+  glLightfv(GL_LIGHT0,GL_SPOT_DIRECTION,light0_direction);
+  glEnable(GL_LIGHTING);
+  glEnable(GL_LIGHT0);
+}
+
+
+void material()
+{
+  float mat_diffuse[] = {1.0,1.0,0.0,1.0};
+  float mat_specular[] = {1.0,1.0,1.0,1.0};
+  float mat_shininess[] = {2.0};
+
+  glMaterialfv(GL_FRONT,GL_DIFFUSE,mat_diffuse);
+  glMaterialfv(GL_FRONT,GL_SPECULAR,mat_specular);
+  glMaterialfv(GL_FRONT,GL_SHININESS,mat_shininess);
+}
+
 
 int main(int argc, char** argv)
 {
@@ -578,34 +682,42 @@ int main(int argc, char** argv)
   for(int i=0;i<iwidth*iheight;i++ ) { obstruction_source[i] = 1.0; }
 
   divergance_source = new float[iwidth*iheight*3]();
-
-  // initialize fluid
-  fluid = new cfd(iwidth, iheight, 1.0, (float)(1.0/24.0), nloops, oploops);
-  fluid->setColorSourceField(color_source);
-
+//
+//  // initialize fluid
+//  fluid = new cfd(iwidth, iheight, 1.0, (float)(1.0/24.0), nloops, oploops);
+//  fluid->setColorSourceField(color_source);
+//
   display_map = new float[iwidth*iheight*3];
 
   InitializeBrushes(BRUSH_SIZE);
 
   paint_mode = PAINT_SOURCE;
-
+//
   // GLUT routines
   glutInit(&argc, argv);
 
-  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
-  glutInitWindowSize(iwidth, iheight);
-
-  // Open a window 
+  glutInitDisplayMode(GLUT_RGBA| GLUT_MULTISAMPLE);
+  glutInitWindowSize(768, 768);
+//
+//  // Open a window
   char title[] = "Fluid Simulator";
   glutCreateWindow(title);
-
-  glClearColor(1, 1, 1, 1);
+//
+//  glClearColor(1, 1, 1, 1);
 
   setupViewVolume();
+  lights();
+  material();
+  shader_program = setShaders();
+  set_texture();
+
+
 //  drawStuff();
-  glutDisplayFunc(&drawStuff);
+  glutDisplayFunc(drawStuff);
 //  glutIdleFunc(&cbIdle);
-//  glutKeyboardFunc(&cbOnKeyboard);
+  glutKeyboardFunc(cbOnKeyboard);
+
+  cout << glGetString(GL_VERSION) << endl;
 //  glutMouseFunc(&cbMouseDown);
 //  glutMotionFunc(&cbMouseMove);
 
