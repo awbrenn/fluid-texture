@@ -78,7 +78,7 @@ using namespace lux;
 OIIO_NAMESPACE_USING
 
 int iwidth, iheight;
-int shader_program;
+unsigned int shader_program;
 float* display_map;
 float* density_source;
 float* color_source;
@@ -507,10 +507,8 @@ struct point {
 void drawStuff() {
   int i;
   struct point front[4]={{0.0,0.0,1.0},{1.0,0.0,1.0},{1.0,1.0,1.0},{0.0,1.0,1.0}};
-  float mytexcoords[4][2] = {{0.0,1.0},{1.0,1.0},{1.0,0.0},{0.0,0.0}};
-
-  glEnable(GL_DEPTH_TEST);
-  glEnable(GL_MULTISAMPLE_ARB);
+  //float mytexcoords[4][2] = {{0.0,1.0},{1.0,1.0},{1.0,0.0},{0.0,0.0}};
+  float mytexcoords[4][2] = {{0.0,0.0},{1.0,0.0},{1.0,1.0},{0.0,1.0}};
 
   glClearColor(0.35,0.35,0.35,0.0);
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -521,7 +519,10 @@ void drawStuff() {
   glEnable(GL_TEXTURE_2D);
   glBegin(GL_QUADS);
   glNormal3f(0.0,0.0,1.0);
-  for(i=0;i<4;i++) glVertex3f(front[i].x,front[i].y,front[i].z);
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(front[i].x,front[i].y,front[i].z);
+  }
   glEnd();
   glFlush();
 }
@@ -597,12 +598,15 @@ void set_uniform_parameters(unsigned int p)
 
 
 void set_texture() {
+  unsigned char *pixel_data = new unsigned char[iwidth*iheight*3];
+  for (int i = 0; i < iwidth*iheight*3; ++i) { pixel_data[i] = (unsigned char)(color_source[i] * 255.0f); }
   glBindTexture(GL_TEXTURE_2D,1);
   glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,iwidth,iheight,0,GL_RGB,
-      GL_UNSIGNED_BYTE,color_source);
+      GL_UNSIGNED_BYTE,pixel_data);
   glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
   glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
   glTexEnvf(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+  delete pixel_data;
 }
 
 
@@ -666,51 +670,52 @@ int main(int argc, char** argv)
   PrintUsage();
   cout << "\n\nPROGRAM OUTPUT:\n";
 
-  // initialize a few variables
-  scaling_factor = 1.0;
-  toggle_animation_on_off = true;
-  capture_mode = false;
+//  // initialize a few variables
+//  scaling_factor = 1.0;
+//  toggle_animation_on_off = true;
+//  capture_mode = false;
 
   // if reading the image fails we need to allocate space for color_source
   if (readOIIOImage(imagename.c_str()) != 0)
     color_source = new float[iwidth*iheight*3]();
 
-  density_source = new float[iwidth*iheight]();
-
-  // create obstruction source and initialize it to 1.0
-  obstruction_source = new float[iwidth*iheight];
-  for(int i=0;i<iwidth*iheight;i++ ) { obstruction_source[i] = 1.0; }
-
-  divergance_source = new float[iwidth*iheight*3]();
+//  density_source = new float[iwidth*iheight]();
 //
-//  // initialize fluid
-//  fluid = new cfd(iwidth, iheight, 1.0, (float)(1.0/24.0), nloops, oploops);
-//  fluid->setColorSourceField(color_source);
+//  // create obstruction source and initialize it to 1.0
+//  obstruction_source = new float[iwidth*iheight];
+//  for(int i=0;i<iwidth*iheight;i++ ) { obstruction_source[i] = 1.0; }
 //
-  display_map = new float[iwidth*iheight*3];
-
-  InitializeBrushes(BRUSH_SIZE);
-
-  paint_mode = PAINT_SOURCE;
+//  divergance_source = new float[iwidth*iheight*3]();
+////
+////  // initialize fluid
+////  fluid = new cfd(iwidth, iheight, 1.0, (float)(1.0/24.0), nloops, oploops);
+////  fluid->setColorSourceField(color_source);
+////
+//  display_map = new float[iwidth*iheight*3];
+//
+//  InitializeBrushes(BRUSH_SIZE);
+//
+//  paint_mode = PAINT_SOURCE;
 //
   // GLUT routines
   glutInit(&argc, argv);
 
   glutInitDisplayMode(GLUT_RGBA| GLUT_MULTISAMPLE);
+  glutInitWindowPosition(700, 300);
   glutInitWindowSize(768, 768);
-//
+
 //  // Open a window
   char title[] = "Fluid Simulator";
   glutCreateWindow(title);
-//
-//  glClearColor(1, 1, 1, 1);
+  glEnable(GL_DEPTH_TEST);
+  glEnable(GL_MULTISAMPLE_ARB);
 
+  set_texture();
   setupViewVolume();
   lights();
   material();
   shader_program = setShaders();
-  set_texture();
-
+  set_uniform_parameters(shader_program);
 
 //  drawStuff();
   glutDisplayFunc(drawStuff);
