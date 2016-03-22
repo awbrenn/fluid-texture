@@ -79,7 +79,7 @@ OIIO_NAMESPACE_USING
 
 int iwidth, iheight;
 unsigned int shader_program;
-float* display_map;
+unsigned char* display_map;
 float* density_source;
 float* color_source;
 float* obstruction_source;
@@ -261,23 +261,10 @@ void setNbCores( int nb )
 void ConvertToDisplay()
 {
   float *color = fluid->getColorPointer();
-  for( int j=0;j<iheight;j++ )
-  {
 #ifdef __linux__
 #pragma omp parallel for
 #endif
-    for(int i=0;i<iwidth;i++ )
-    {
-      int index = i + iwidth*j;
-      float r,g,b;
-      r = color[index*3];
-      g = color[index*3+1];
-      b = color[index*3+2];
-      display_map[3*index  ] = r * scaling_factor;
-      display_map[3*index+1] = g * scaling_factor;
-      display_map[3*index+2] = b * scaling_factor;
-    }
-  }
+  for (int i = 0; i < iwidth*iheight*3; ++i) { display_map[i] = (unsigned char)(color[i] * 255.0f); }
 }
 
 void resetScaleFactor( float amount )
@@ -506,8 +493,7 @@ struct point {
 
 void drawStuff() {
   int i;
-  struct point front[4]={{0.0,0.0,1.0},{1.0,0.0,1.0},{1.0,1.0,1.0},{0.0,1.0,1.0}};
-  //float mytexcoords[4][2] = {{0.0,1.0},{1.0,1.0},{1.0,0.0},{0.0,0.0}};
+  struct point face[4]={{0.0,0.0,0.0},{1.0,0.0,0.0},{1.0,1.0,0.0},{0.0,1.0,0.0}};
   float mytexcoords[4][2] = {{0.0,0.0},{1.0,0.0},{1.0,1.0},{0.0,1.0}};
 
   glClearColor(0.35,0.35,0.35,0.0);
@@ -521,7 +507,7 @@ void drawStuff() {
   glNormal3f(0.0,0.0,1.0);
   for(i=0;i<4;i++) {
     glTexCoord2fv(mytexcoords[i]);
-    glVertex3f(front[i].x,front[i].y,front[i].z);
+    glVertex3f(face[i].x,face[i].y,face[i].z);
   }
   glEnd();
   glFlush();
@@ -540,8 +526,8 @@ void setupViewVolume()
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 
-  eye.x = 2.5; eye.y = 1.8; eye.z = 2.0;
-  view.x = 0.0; view.y = 0.0; view.z = 0.0;
+  eye.x = 0.5; eye.y = 0.5; eye.z = 2.0;
+  view.x = 0.5; view.y = 0.5; view.z = 0.0;
   up.x = 0.0; up.y = 1.0; up.z = 0.0;
 
   gluLookAt(eye.x,eye.y,eye.z,view.x,view.y,view.z,up.x,up.y,up.z);
@@ -598,15 +584,13 @@ void set_uniform_parameters(unsigned int p)
 
 
 void set_texture() {
-  unsigned char *pixel_data = new unsigned char[iwidth*iheight*3];
-  for (int i = 0; i < iwidth*iheight*3; ++i) { pixel_data[i] = (unsigned char)(color_source[i] * 255.0f); }
+
   glBindTexture(GL_TEXTURE_2D,1);
   glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,iwidth,iheight,0,GL_RGB,
-      GL_UNSIGNED_BYTE,pixel_data);
+      GL_UNSIGNED_BYTE,display_map);
   glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
   glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
   glTexEnvf(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
-  delete pixel_data;
 }
 
 
@@ -670,33 +654,35 @@ int main(int argc, char** argv)
   PrintUsage();
   cout << "\n\nPROGRAM OUTPUT:\n";
 
-//  // initialize a few variables
-//  scaling_factor = 1.0;
-//  toggle_animation_on_off = true;
-//  capture_mode = false;
+  // initialize a few variables
+  scaling_factor = 1.0;
+  toggle_animation_on_off = true;
+  capture_mode = false;
 
   // if reading the image fails we need to allocate space for color_source
   if (readOIIOImage(imagename.c_str()) != 0)
     color_source = new float[iwidth*iheight*3]();
 
-//  density_source = new float[iwidth*iheight]();
-//
-//  // create obstruction source and initialize it to 1.0
-//  obstruction_source = new float[iwidth*iheight];
-//  for(int i=0;i<iwidth*iheight;i++ ) { obstruction_source[i] = 1.0; }
-//
-//  divergance_source = new float[iwidth*iheight*3]();
-////
-////  // initialize fluid
-////  fluid = new cfd(iwidth, iheight, 1.0, (float)(1.0/24.0), nloops, oploops);
-////  fluid->setColorSourceField(color_source);
-////
-//  display_map = new float[iwidth*iheight*3];
-//
-//  InitializeBrushes(BRUSH_SIZE);
-//
-//  paint_mode = PAINT_SOURCE;
-//
+  density_source = new float[iwidth*iheight]();
+
+  // create obstruction source and initialize it to 1.0
+  obstruction_source = new float[iwidth*iheight];
+  for(int i=0;i<iwidth*iheight;i++ ) { obstruction_source[i] = 1.0; }
+
+  divergance_source = new float[iwidth*iheight*3]();
+
+  display_map = new unsigned char[iwidth*iheight*3];
+
+  // initialize fluid
+  fluid = new cfd(iwidth, iheight, 1.0, (float)(1.0/24.0), nloops, oploops);
+  fluid->setColorSourceField(color_source);
+  update();
+  ConvertToDisplay();
+
+  InitializeBrushes(BRUSH_SIZE);
+
+  paint_mode = PAINT_SOURCE;
+
   // GLUT routines
   glutInit(&argc, argv);
 
@@ -719,7 +705,7 @@ int main(int argc, char** argv)
 
 //  drawStuff();
   glutDisplayFunc(drawStuff);
-//  glutIdleFunc(&cbIdle);
+  glutIdleFunc(&cbIdle);
   glutKeyboardFunc(cbOnKeyboard);
 
   cout << glGetString(GL_VERSION) << endl;
