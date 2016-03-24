@@ -504,11 +504,15 @@ void set_texture() {
 
 void drawStuff() {
   int i;
-  struct point face[4]={{0.0,0.0,0.0},{1.0,0.0,0.0},{1.0,1.0,0.0},{0.0,1.0,0.0}};
+  struct point tile0[4]={{0.0,0.0,0.0},{0.5,0.0,0.0},{0.5,0.5,0.0},{0.0,0.5,0.0}};
+  struct point tile1[4]={{0.0,0.0,0.1},{0.75,0.0,0.1},{0.75,0.75,0.1},{0.0,0.75,0.1}};
+  struct point tile2[4]={{-0.25,0.0,-0.1},{0.25,0.0,-0.1},{0.25,0.5,-0.1},{-0.25,0.5,-0.1}};
+  struct point tile3[4]={{0.0,0.0,0.1},{0.75,0.0,0.1},{0.75,0.75,0.1},{0.0,0.75,0.1}};
+  struct point tile4[4]={{0.0,0.0,0.1},{0.75,0.0,0.1},{0.75,0.75,0.1},{0.0,0.75,0.1}};
   float mytexcoords[4][2] = {{0.0,0.0},{1.0,0.0},{1.0,1.0},{0.0,1.0}};
 
   set_texture();
-  glClearColor(0.0,0.0,0.0,0.0);
+  glClearColor(0.3,0.3,0.3,0.3);
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
   glUseProgram((GLuint) shader_program);		// THIS IS IT!
@@ -517,9 +521,20 @@ void drawStuff() {
   glEnable(GL_TEXTURE_2D);
   glBegin(GL_QUADS);
   glNormal3f(0.0,0.0,1.0);
+
   for(i=0;i<4;i++) {
     glTexCoord2fv(mytexcoords[i]);
-    glVertex3f(face[i].x,face[i].y,face[i].z);
+    glVertex3f(tile2[i].x,tile2[i].y,tile2[i].z);
+  }
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile0[i].x,tile0[i].y,tile0[i].z);
+  }
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile1[i].x,tile1[i].y,tile1[i].z);
   }
   glEnd();
   glFlush();
