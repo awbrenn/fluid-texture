@@ -491,12 +491,24 @@ struct point {
     float x, y, z;
 };
 
+
+void set_texture() {
+
+  glBindTexture(GL_TEXTURE_2D,1);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,iwidth,iheight,0,GL_RGB,
+               GL_UNSIGNED_BYTE,display_map);
+  glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+  glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+  glTexEnvf(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+}
+
 void drawStuff() {
   int i;
   struct point face[4]={{0.0,0.0,0.0},{1.0,0.0,0.0},{1.0,1.0,0.0},{0.0,1.0,0.0}};
   float mytexcoords[4][2] = {{0.0,0.0},{1.0,0.0},{1.0,1.0},{0.0,1.0}};
 
-  glClearColor(0.35,0.35,0.35,0.0);
+  set_texture();
+  glClearColor(0.0,0.0,0.0,0.0);
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
   glUseProgram((GLuint) shader_program);		// THIS IS IT!
@@ -582,18 +594,6 @@ void set_uniform_parameters(unsigned int p)
   glUniform1i(location,0);
 }
 
-
-void set_texture() {
-
-  glBindTexture(GL_TEXTURE_2D,1);
-  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,iwidth,iheight,0,GL_RGB,
-      GL_UNSIGNED_BYTE,display_map);
-  glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-  glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-  glTexEnvf(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
-}
-
-
 void lights()
 {
   float light0_ambient[] = { 0.0, 0.0, 0.0, 0.0 };
@@ -647,7 +647,7 @@ int main(int argc, char** argv)
   setNbCores(4);
 #endif
 
-  string imagename = clf.find("-image", "dali1.jpeg", "Image to drive color");
+//  string imagename = clf.find("-image", "dali1.jpeg", "Image to drive color");
 
   clf.usage("-h");
   clf.printFinds();
@@ -659,9 +659,13 @@ int main(int argc, char** argv)
   toggle_animation_on_off = true;
   capture_mode = false;
 
-  // if reading the image fails we need to allocate space for color_source
-  if (readOIIOImage(imagename.c_str()) != 0)
-    color_source = new float[iwidth*iheight*3]();
+//  // if reading the image fails we need to allocate space for color_source
+//  if (readOIIOImage(imagename.c_str()) != 0)
+//    color_source = new float[iwidth*iheight*3]();
+  iwidth = 128;
+  iheight = 128;
+
+  color_source = new float[iwidth*iheight*3]();
 
   density_source = new float[iwidth*iheight]();
 
@@ -683,18 +687,24 @@ int main(int argc, char** argv)
 
   paint_mode = PAINT_SOURCE;
 
+  DabSomePaint(64, 115);
+  DabSomePaint(70, 115);
+  DabSomePaint(85, 115);
+
   // GLUT routines
   glutInit(&argc, argv);
 
   glutInitDisplayMode(GLUT_RGBA| GLUT_MULTISAMPLE);
   glutInitWindowPosition(700, 300);
-  glutInitWindowSize(768, 768);
+  glutInitWindowSize(1024, 1024);
 
-//  // Open a window
+  // Open a window
   char title[] = "Fluid Simulator";
   glutCreateWindow(title);
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_MULTISAMPLE_ARB);
+  glEnable (GL_BLEND);
+  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   set_texture();
   setupViewVolume();
@@ -703,7 +713,6 @@ int main(int argc, char** argv)
   shader_program = setShaders();
   set_uniform_parameters(shader_program);
 
-//  drawStuff();
   glutDisplayFunc(drawStuff);
   glutIdleFunc(&cbIdle);
   glutKeyboardFunc(cbOnKeyboard);

@@ -16,7 +16,7 @@ cfd::cfd(const int nx, const int ny, const float dx, const float Dt, int Nloops,
   nloops = Nloops;
   oploops = Oploops;
   gravityX = 0.0;
-  gravityY = (float)(-9.8);
+  gravityY = (float)(9.8);
   density1 = new float[Nx*Ny]();
   density2 = new float[Nx*Ny]();
   velocity1 = new float[Nx*Ny*2]();
@@ -206,7 +206,7 @@ void cfd::addSourceDensity()
         density1[dIndex(i,j)] += densitySourceField[dIndex(i,j)] * obstruction[oIndex(i,j)];;
       }
     }
-    // re-initialize colorSourceField
+    // re-initialize densitySourceField
     Initialize(densitySourceField, Nx*Ny, 0.0);
     densitySourceField = 0;
   }
