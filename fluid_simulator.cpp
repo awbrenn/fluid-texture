@@ -155,44 +155,40 @@ int readOIIOImage( const char* fname)
 }
 
 
-void writeImage()
-{
-  char buffer [256];
+void writeImage() {
+  char buffer[256];
+
   if (sprintf(buffer, "%sfluid_simulator_%04d.jpg", output_path.c_str(), frame_count++) < 0) {
     handleError((const char *) "creating filename in writeImage() failed", 0);
     return;
   }
   const char *filename = buffer;
-  const int xres = iwidth, yres = iheight;
-  const int channels = 3; // RGB
-  float* pixels = new float[xres*yres*channels];
-  ImageOutput *out = ImageOutput::create (filename);
-  if (! out) {
+  const unsigned int channels = 3; // RGB
+  float *write_pixels = new float[1024 * 1024 * channels];
+  float *window_pixels = new float[1024 * 1024 * channels];
+  ImageOutput *out = ImageOutput::create(filename);
+  if (!out) {
     handleError((const char *) "creating output file in writeImage() failed", 0);
     return;
   }
 
+  glReadPixels(0, 0, 1024, 1024, GL_RGB, GL_FLOAT, window_pixels);
   long index = 0;
-  float* current_fluid_color = fluid->getColorPointer();
-
-  for( int j=0;j<iheight;j++)
-  {
-    for (int i = 0; i < iwidth; i++)
-    {
-      for (int c = 0; c < channels; c++)
-      {
-        pixels[ (i + iwidth*(iheight - j - 1))*channels + c ] = current_fluid_color[index++];
+  for (unsigned int j = 0; j < 1024; j++) {
+    for (unsigned int i = 0; i < 1024; i++) {
+      for (unsigned int c = 0; c < channels; c++) {
+        write_pixels[(i + 1024 * (1024 - j - 1)) * channels + c] = window_pixels[index++]; //color[index++];
       }
     }
   }
 
-  ImageSpec spec (xres, yres, channels, TypeDesc::FLOAT);
+  ImageSpec spec (1024, 1024, channels, TypeDesc::FLOAT);
   out->open (filename, spec);
-  out->write_image (TypeDesc::FLOAT, pixels);
+  out->write_image (TypeDesc::FLOAT, write_pixels);
   out->close ();
   delete out;
-
-  delete pixels;
+  delete write_pixels;
+  delete window_pixels;
 }
 
 
@@ -312,7 +308,7 @@ void DabSomePaint( int x, int y ) {
     for (int ix = xstart; ix <= xend; ix++) {
       for (int iy = ystart; iy <= yend; iy++) {
         int index = ix + iwidth * (iheight - iy - 1);
-        color_source[3 * index + 2] += source_brush[ix - xstart][iy - ystart];
+        //color_source[3 * index + 2] += source_brush[ix - xstart][iy - ystart];
         divergance_source[index] += source_brush[ix - xstart][iy - ystart]*divergence_source_magnitude;
       }
     }
@@ -323,7 +319,7 @@ void DabSomePaint( int x, int y ) {
     for (int ix = xstart; ix <= xend; ix++) {
       for (int iy = ystart; iy <= yend; iy++) {
         int index = ix + iwidth * (iheight - iy - 1);
-        color_source[3 * index] += source_brush[ix - xstart][iy - ystart];
+        //color_source[3 * index] += source_brush[ix - xstart][iy - ystart];
         divergance_source[index] += source_brush[ix - xstart][iy - ystart]*divergence_source_magnitude*(-1.0f);
       }
     }
@@ -507,12 +503,16 @@ void drawStuff() {
   struct point tile0[4]={{0.0,0.0,0.0},{0.5,0.0,0.0},{0.5,0.5,0.0},{0.0,0.5,0.0}};
   struct point tile1[4]={{0.0,0.0,0.1},{0.75,0.0,0.1},{0.75,0.75,0.1},{0.0,0.75,0.1}};
   struct point tile2[4]={{-0.25,0.0,-0.1},{0.25,0.0,-0.1},{0.25,0.5,-0.1},{-0.25,0.5,-0.1}};
-  struct point tile3[4]={{0.0,0.0,0.1},{0.75,0.0,0.1},{0.75,0.75,0.1},{0.0,0.75,0.1}};
-  struct point tile4[4]={{0.0,0.0,0.1},{0.75,0.0,0.1},{0.75,0.75,0.1},{0.0,0.75,0.1}};
+  struct point tile3[4]={{0.0,0.0,0.5},{0.75,0.0,0.5},{0.75,0.75,0.5},{0.0,0.75,0.5}};
+  struct point tile4[4]={{0.5,0.0,0.6},{1.0,0.0,0.6},{1.0,1.0,0.6},{0.5,1.0,0.6}};
+  struct point tile5[4]={{0.5,0.0,-0.2},{1.0,0.0,-0.2},{1.0,1.0,-0.2},{0.5,1.0,-0.2}};
+  struct point tile6[4]={{0.2,0.0,-0.3},{0.95,0.0,-0.3},{0.95,0.75,-0.3},{0.2,0.75,-0.3}};
+  struct point tile7[4]={{0.0,0.0,-0.4},{0.5,0.0,-0.4},{0.5,0.5,-0.4},{0.0,0.5,-0.4}};
+  struct point tile8[4]={{0.1,0.0,-0.41},{0.6,0.0,-0.41},{0.6,0.5,-0.41},{0.1,0.5,-0.41}};
   float mytexcoords[4][2] = {{0.0,0.0},{1.0,0.0},{1.0,1.0},{0.0,1.0}};
 
   set_texture();
-  glClearColor(0.3,0.3,0.3,0.3);
+  glClearColor(0.0,0.0,0.0,0.0);
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
   glUseProgram((GLuint) shader_program);		// THIS IS IT!
@@ -521,6 +521,26 @@ void drawStuff() {
   glEnable(GL_TEXTURE_2D);
   glBegin(GL_QUADS);
   glNormal3f(0.0,0.0,1.0);
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile8[i].x,tile8[i].y,tile8[i].z);
+  }
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile7[i].x,tile7[i].y,tile7[i].z);
+  }
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile6[i].x,tile6[i].y,tile6[i].z);
+  }
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile5[i].x,tile5[i].y,tile5[i].z);
+  }
 
   for(i=0;i<4;i++) {
     glTexCoord2fv(mytexcoords[i]);
@@ -536,6 +556,17 @@ void drawStuff() {
     glTexCoord2fv(mytexcoords[i]);
     glVertex3f(tile1[i].x,tile1[i].y,tile1[i].z);
   }
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile3[i].x,tile3[i].y,tile3[i].z);
+  }
+
+  for(i=0;i<4;i++) {
+    glTexCoord2fv(mytexcoords[i]);
+    glVertex3f(tile4[i].x,tile4[i].y,tile4[i].z);
+  }
+
   glEnd();
   glFlush();
 }
@@ -672,7 +703,7 @@ int main(int argc, char** argv)
   // initialize a few variables
   scaling_factor = 1.0;
   toggle_animation_on_off = true;
-  capture_mode = false;
+  capture_mode = true;
 
 //  // if reading the image fails we need to allocate space for color_source
 //  if (readOIIOImage(imagename.c_str()) != 0)
@@ -702,9 +733,17 @@ int main(int argc, char** argv)
 
   paint_mode = PAINT_SOURCE;
 
-  DabSomePaint(64, 115);
-  DabSomePaint(70, 115);
-  DabSomePaint(85, 115);
+  DabSomePaint(64, 64);
+
+  paint_mode = PAINT_DIVERGENCE_NEGATIVE;
+  DabSomePaint(60, 60);
+  DabSomePaint(30, 30);
+  DabSomePaint(70, 70);
+  DabSomePaint(100, 100);
+  DabSomePaint(64, 64);
+  DabSomePaint(64, 64);
+  DabSomePaint(64, 64);
+  DabSomePaint(64, 64);
 
   // GLUT routines
   glutInit(&argc, argv);

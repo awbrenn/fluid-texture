@@ -15,8 +15,8 @@ cfd::cfd(const int nx, const int ny, const float dx, const float Dt, int Nloops,
   dt = Dt;
   nloops = Nloops;
   oploops = Oploops;
-  gravityX = 0.0;
-  gravityY = (float)(9.8);
+  gravityX = 0.0f;
+  gravityY = 0.0f;
   density1 = new float[Nx*Ny]();
   density2 = new float[Nx*Ny]();
   velocity1 = new float[Nx*Ny*2]();
